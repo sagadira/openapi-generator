@@ -100,6 +100,7 @@ public abstract class AbstractJavaCodegen extends DefaultCodegen implements Code
     public static final String DEFAULT_TEST_FOLDER = "${project.build.directory}/generated-test-sources/openapi";
     public static final String GENERATE_CONSTRUCTOR_WITH_ALL_ARGS = "generateConstructorWithAllArgs";
     public static final String GENERATE_BUILDERS = "generateBuilders";
+    public static final String DISABLE_DISCRIMINATOR_JSON_IGNORE_PROPERTIES = "disableDiscriminatorJsonIgnoreProperties";
 
     @Getter @Setter
     protected String dateLibrary = "java8";
@@ -189,6 +190,8 @@ public abstract class AbstractJavaCodegen extends DefaultCodegen implements Code
     protected boolean jackson = false;
     @Getter @Setter
     protected boolean generateBuilders;
+    @Getter @Setter
+    protected boolean disableDiscriminatorJsonIgnoreProperties = false;
     /**
      * useBeanValidation has been moved from child generators to AbstractJavaCodegen.
      * The reason is that getBeanValidation needs it
@@ -336,6 +339,7 @@ public abstract class AbstractJavaCodegen extends DefaultCodegen implements Code
         cliOptions.add(CliOption.newBoolean(CONTAINER_DEFAULT_TO_NULL, "Set containers (array, set, map) default to null"));
         cliOptions.add(CliOption.newBoolean(GENERATE_CONSTRUCTOR_WITH_ALL_ARGS, "whether to generate a constructor for all arguments").defaultValue(Boolean.FALSE.toString()));
         cliOptions.add(CliOption.newBoolean(GENERATE_BUILDERS, "Whether to generate builders for models").defaultValue(Boolean.FALSE.toString()));
+        cliOptions.add(CliOption.newBoolean(DISABLE_DISCRIMINATOR_JSON_IGNORE_PROPERTIES, "Ignore discriminator field type for Jackson serialization", disableDiscriminatorJsonIgnoreProperties));
 
         cliOptions.add(CliOption.newString(CodegenConstants.PARENT_GROUP_ID, CodegenConstants.PARENT_GROUP_ID_DESC));
         cliOptions.add(CliOption.newString(CodegenConstants.PARENT_ARTIFACT_ID, CodegenConstants.PARENT_ARTIFACT_ID_DESC));
@@ -415,6 +419,7 @@ public abstract class AbstractJavaCodegen extends DefaultCodegen implements Code
 
         convertPropertyToBooleanAndWriteBack(GENERATE_CONSTRUCTOR_WITH_ALL_ARGS, this::setGenerateConstructorWithAllArgs);
         convertPropertyToBooleanAndWriteBack(GENERATE_BUILDERS, this::setGenerateBuilders);
+        convertPropertyToBooleanAndWriteBack(DISABLE_DISCRIMINATOR_JSON_IGNORE_PROPERTIES, this::setDisableDiscriminatorJsonIgnoreProperties);
         if (StringUtils.isEmpty(System.getenv("JAVA_POST_PROCESS_FILE"))) {
             LOGGER.info("Environment variable JAVA_POST_PROCESS_FILE not defined so the Java code may not be properly formatted. To define it, try 'export JAVA_POST_PROCESS_FILE=\"/usr/local/bin/clang-format -i\"' (Linux/Mac)");
             LOGGER.info("NOTE: To enable file post-processing, 'enablePostProcessFile' must be set to `true` (--enable-post-process-file for CLI).");
@@ -736,6 +741,13 @@ public abstract class AbstractJavaCodegen extends DefaultCodegen implements Code
                 }
                 if (codegenModel.getParentModel() != null) {
                     codegenModel.parentRequiredVars = new ArrayList<>(codegenModel.getParentModel().requiredVars);
+                }
+                // Mark readOnlyVars that are inherited from a parent so templates can skip re-assigning them
+                // in the child @JsonCreator constructor (avoids "private field not accessible" and type-mismatch errors)
+                for (CodegenProperty readOnlyVar : codegenModel.readOnlyVars) {
+                    if (codegenModel.parentVars.stream().anyMatch(pv -> pv.name.equals(readOnlyVar.name))) {
+                        readOnlyVar.isInherited = true;
+                    }
                 }
                 // There must be a better way ...
                 for (String imp: inheritedImports) {
