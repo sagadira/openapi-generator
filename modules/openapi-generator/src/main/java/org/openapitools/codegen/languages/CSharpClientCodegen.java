@@ -1658,6 +1658,15 @@ public class CSharpClientCodegen extends AbstractCSharpCodegen {
                 cm.isNullable = true;
             }
 
+            // ISSDK-462: mark relationship oneOf wrappers (those whose oneOf options include
+            // a MoMoRef) so the C# template can generate derived Moid/ObjectType/ClassId
+            // pass-through properties. This lets relationship objects bind directly to
+            // PowerShell pipeline parameters (ValueFromPipelineByPropertyName) without
+            // reaching into ActualInstance.
+            if (cm.oneOf != null && cm.oneOf.contains("MoMoRef")) {
+                cm.vendorExtensions.put("x-is-mo-ref-relationship", true);
+            }
+
             if (cm.getComposedSchemas() != null) {
                 if (cm.getComposedSchemas().getOneOf() != null) {
                     cm.getComposedSchemas().getOneOf().removeIf(o -> "Null".equals(o.dataType));

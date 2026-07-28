@@ -83,6 +83,58 @@
         {{/isNull}}
         {{/vendorExtensions.x-duplicated-data-type}}
         {{/composedSchemas.oneOf}}
+        {{#vendorExtensions.x-is-mo-ref-relationship}}
+
+        /// <summary>
+        /// Gets the Moid of the underlying instance (MoMoRef or the expanded managed object).
+        /// Derived pass-through property (ISSDK-462) that lets this relationship object bind
+        /// directly to PowerShell pipeline parameters without accessing ActualInstance.
+        /// </summary>
+        public string Moid
+        {
+            get { return GetActualInstanceMemberAsString("Moid"); }
+        }
+
+        /// <summary>
+        /// Gets the ObjectType of the underlying instance. Derived pass-through property (ISSDK-462).
+        /// </summary>
+        public string ObjectType
+        {
+            get { return GetActualInstanceMemberAsString("ObjectType"); }
+        }
+
+        /// <summary>
+        /// Gets the ClassId of the underlying instance. Derived pass-through property (ISSDK-462).
+        /// </summary>
+        public string ClassId
+        {
+            get { return GetActualInstanceMemberAsString("ClassId"); }
+        }
+
+        /// <summary>
+        /// Reads a string-convertible member from the actual instance via reflection.
+        /// Returns null when the actual instance is null or does not expose the member.
+        /// </summary>
+        /// <param name="memberName">Name of the property to read (Moid, ObjectType, ClassId).</param>
+        /// <returns>The member value as a string, or null.</returns>
+        private string GetActualInstanceMemberAsString(string memberName)
+        {
+            var instance = this.ActualInstance;
+            if (instance == null)
+            {
+                return null;
+            }
+
+            var propertyInfo = instance.GetType().GetProperty(memberName);
+            if (propertyInfo == null)
+            {
+                return null;
+            }
+
+            var value = propertyInfo.GetValue(instance);
+            return value?.ToString();
+        }
+        {{/vendorExtensions.x-is-mo-ref-relationship}}
 
         /// <summary>
         /// Returns the string presentation of the object
